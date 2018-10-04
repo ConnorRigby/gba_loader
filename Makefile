@@ -16,7 +16,7 @@ HERE = $(PWD)
 priv:
 	mkdir -p priv
 
-priv/gba_loader:
+priv/gba_loader: src/multiboot.c
 	$(CC) $(WIRINGPI_CFLAGS) $(WIRINGPI_LDFLAGS) src/multiboot.c -o $@
 	cp $(HERE)/priv/libwiringPi.so rootfs_overlay/usr/lib
 

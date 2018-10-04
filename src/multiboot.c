@@ -70,6 +70,7 @@ int main(int argc, char const *argv[])
         fprintf(stderr, "Err: Max file size 256kB\r\n");
         return -1;
     }
+    fprintf(stderr, "fsize: 0x%08lx\r\n", fsize);
 
     fseek(fp, 0L, SEEK_SET);
     long fcnt = 0;
@@ -134,7 +135,7 @@ int main(int argc, char const *argv[])
 
             w = w >> 1;
         }
-
+        fprintf(stderr, "c: 0x%08x\r\nm: 0x%08x\r\nfcnt: 0x%08lx \r\n fsize: 0x%08lx\r\n", c, m, fcnt, fsize);
         m = (0x6f646573 * m) + 1;
         WriteSPI32NoDebug(w2 ^ ((~(0x02000000 + fcnt)) + 1) ^m ^0x43202f2f);
 

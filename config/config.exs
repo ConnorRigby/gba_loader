@@ -29,9 +29,9 @@ config :nerves_firmware_ssh,
 config :nerves_init_gadget,
   node_name: :gba_loader,
   node_host: :mdns_domain,
-  mdns_domain: "gba_loader.local"
-  # ifname: "eth0",
-  # address_method: :dhcp
+  mdns_domain: "gba.local",
+  interface: "usb0",
+  address_method: :dhcpd
 
 if Mix.Project.config[:target] == "host" do
   config :gba_loader, GbaLoaderWeb.Endpoint,
