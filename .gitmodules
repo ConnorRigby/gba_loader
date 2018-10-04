@@ -1,3 +1,0 @@
-[submodule "src/wifinwPi"]
-	path = src/wifinwPi
-	url = git://git.drogon.net/wiringPi
