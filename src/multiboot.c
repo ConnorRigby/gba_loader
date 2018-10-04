@@ -1,30 +1,66 @@
+#include <stdlib.h> 
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <wiringPi.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <linux/spi/spidev.h>
 
+#define TRANSFER_BUFFER_LEN 4
+
+static int spi;
+
+// This is for BBP
+static const char *device = "/dev/spidev1.0";
+
+// This is for RPI
+// static const char *device = "/dev/spidev0.0";
+
+static uint8_t TRANSFER_BUFFER[TRANSFER_BUFFER_LEN];
+
+static uint8_t TRANSFER_MODE = 3;
+static uint8_t TRANSFER_BPW = 8;
+static uint32_t TRANSFER_SPEED_HZ = 100000;
+static uint16_t TRANSFER_DELAY_USEC = 10000;
+
+static void pabort(const char *s)
+{
+	perror(s);
+	abort();
+}
+
+int SPI32Init();
 uint32_t WriteSPI32NoDebug(uint32_t w);
 uint32_t WriteSPI32(uint32_t w, char* msg);
 void WaitSPI32(uint32_t w, uint32_t comp, char* msg);
+
 int main(int argc, char const *argv[]);
 
 uint32_t WriteSPI32NoDebug(uint32_t w)
-{
-    uint8_t buf[4];
+{   
+    TRANSFER_BUFFER[3] = (w & 0x000000ff);
+    TRANSFER_BUFFER[2] = (w & 0x0000ff00) >>  8;
+    TRANSFER_BUFFER[1] = (w & 0x00ff0000) >> 16;
+    TRANSFER_BUFFER[0] = (w & 0xff000000) >> 24;
+	struct spi_ioc_transfer tr = {
+		.tx_buf = (unsigned long)TRANSFER_BUFFER,
+		.rx_buf = (unsigned long)TRANSFER_BUFFER,
+		.len = TRANSFER_BUFFER_LEN,
+		.delay_usecs = TRANSFER_DELAY_USEC,
+		.speed_hz = TRANSFER_SPEED_HZ,
+		.bits_per_word = TRANSFER_BPW,
+	};
 
-    buf[3] = (w & 0x000000ff);
-    buf[2] = (w & 0x0000ff00) >>  8;
-    buf[1] = (w & 0x00ff0000) >> 16;
-    buf[0] = (w & 0xff000000) >> 24;
-
-    wiringPiSPIDataRW(0, &buf, 4);
+	int ret = ioctl(spi, SPI_IOC_MESSAGE(1), &tr);
+	if (ret < 1)
+		pabort("can't send spi message");
 
     uint32_t r = 0;
 
-    r += buf[0] << 24;
-    r += buf[1] << 16;
-    r += buf[2] <<  8;
-    r += buf[3];
+    r += TRANSFER_BUFFER[0] << 24;
+    r += TRANSFER_BUFFER[1] << 16;
+    r += TRANSFER_BUFFER[2] <<  8;
+    r += TRANSFER_BUFFER[3];
 
     return r;
 }
@@ -48,6 +84,48 @@ void WaitSPI32(uint32_t w, uint32_t comp, char* msg)
         usleep(10000);
 
     } while(r != comp);
+}
+
+int SPI32Init()
+{
+    int fd = open(device, O_RDWR);
+	if (fd < 0)
+		pabort("can't open device");
+
+	/*
+	 * spi mode
+	 */
+	int ret = ioctl(fd, SPI_IOC_WR_MODE, &TRANSFER_MODE);
+	if (ret == -1)
+		pabort("can't set spi mode");
+
+	ret = ioctl(fd, SPI_IOC_RD_MODE, &TRANSFER_MODE);
+	if (ret == -1)
+		pabort("can't get spi mode");
+
+	/*
+	 * bits per word
+	 */
+	ret = ioctl(fd, SPI_IOC_WR_BITS_PER_WORD, &TRANSFER_BPW);
+	if (ret == -1)
+		pabort("can't set bits per word");
+
+	ret = ioctl(fd, SPI_IOC_RD_BITS_PER_WORD, &TRANSFER_BPW);
+	if (ret == -1)
+		pabort("can't get bits per word");
+
+	/*
+	 * max speed hz
+	 */
+	ret = ioctl(fd, SPI_IOC_WR_MAX_SPEED_HZ, &TRANSFER_SPEED_HZ);
+	if (ret == -1)
+		pabort("can't set max speed hz");
+
+	ret = ioctl(fd, SPI_IOC_RD_MAX_SPEED_HZ, &TRANSFER_SPEED_HZ);
+	if (ret == -1)
+		pabort("can't get max speed hz");
+    spi = fd;
+    return ret;
 }
 
 int main(int argc, char const *argv[])
@@ -78,7 +156,7 @@ int main(int argc, char const *argv[])
     uint32_t r, w, w2;
     uint32_t i, bit;
 
-    wiringPiSPISetupMode(0, 100000, 3);
+    SPI32Init();
 
     WaitSPI32(0x00006202, 0x72026202, "Looking for GBA");
 
@@ -135,7 +213,7 @@ int main(int argc, char const *argv[])
 
             w = w >> 1;
         }
-        fprintf(stderr, "c: 0x%08x\r\nm: 0x%08x\r\nfcnt: 0x%08lx \r\n fsize: 0x%08lx\r\n", c, m, fcnt, fsize);
+        // fprintf(stderr, "c: 0x%08x\r\nm: 0x%08x\r\nfcnt: 0x%08lx \r\n fsize: 0x%08lx\r\n", c, m, fcnt, fsize);
         m = (0x6f646573 * m) + 1;
         WriteSPI32NoDebug(w2 ^ ((~(0x02000000 + fcnt)) + 1) ^m ^0x43202f2f);
 

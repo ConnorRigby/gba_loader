@@ -2,7 +2,8 @@ defmodule GbaLoader do
   require Logger
 
   def pork do
-    upload(priv_file("porker_mb.gba"))  
+    # upload(priv_file("porker_mb.gba"))  
+    run(priv_file("porker_mb.gba"))  
   end
 
   def run(filename) do

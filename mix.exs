@@ -77,5 +77,6 @@ defmodule GbaLoader.MixProject do
   end
 
   defp system("rpi0"), do: [{:nerves_system_rpi0, "~> 1.4.0", runtime: false}]
+  defp system("bbb"), do: [{:nerves_system_bbb, "~> 2.0.0-rc.0"}]
   defp system(target), do: Mix.raise("Unknown MIX_TARGET: #{target}")
 end
